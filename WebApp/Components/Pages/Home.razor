@@ -1,0 +1,151 @@
+﻿@page "/"
+@using System.Net.Http.Json
+@using Core
+@inject HttpClient Http
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+<PageTitle>Weather</PageTitle>
+
+<h1>Weather</h1>
+
+<div class="mb-3">
+    <label class="form-check-label me-3">
+        <input type="checkbox" class="form-check-input" @bind="showMaxTemp" /> Max Temp
+    </label>
+    <label class="form-check-label me-3">
+        <input type="checkbox" class="form-check-input" @bind="showMinTemp" /> Min Temp
+    </label>
+    <label class="form-check-label me-3">
+        <input type="checkbox" class="form-check-input" @bind="showRain" /> Rain
+    </label>
+    <label class="form-check-label me-3">
+        <input type="checkbox" class="form-check-input" @bind="showWind" /> Wind
+    </label>
+    <label class="form-check-label me-3">
+        <input type="checkbox" class="form-check-input" @bind="showWindDirection" /> Wind Direction
+    </label>
+</div>
+
+<div class="mb-3 text-start">
+    @if (retrievingCities == true)
+    {
+        <p><em>Loading City List...</em></p>
+    }
+    else
+    {
+        <label for="citySelect" class="form-label">Select Cities:</label>
+        <select id="citySelect" class="form-select" multiple @onchange="GetWeather" style="width: 200px; height: 200px;">
+@*             <option value="">-- Choose a city --</option> *@
+            @foreach (var city in cities)
+            {
+                <option value="@city">@city</option>
+            }
+        </select>
+    }
+</div>
+
+
+@if (weekForecasts != null)
+{
+    @foreach (WeekForecast weekForecast in weekForecasts)
+    {
+        <p class="h4">@weekForecast.City</p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="text-align:center;">Date</th>
+                    @if (showMaxTemp)
+                    {
+                        <th style="text-align:center;" aria-label="Max Temperature in Celsius">Max Temp. (C)</th>
+                    }
+                    @if (showMinTemp)
+                    {
+                        <th style="text-align:center;" aria-label="Min Temperature in Celsius">Min Temp. (C)</th>
+                    }
+                    @if (showRain)
+                    {
+                        <th style="text-align:center;">Rain (mm)</th>
+                    }
+                    @if (showWind)
+                    {
+                        <th style="text-align:center;">Wind (mph)</th>
+                    }
+                    @if (showWindDirection)
+                    {
+                        <th style="text-align:center;">Wind Direction</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var dailyForecast in weekForecast.DailyForecasts)
+                {
+                    <tr>
+                        <td style="text-align:center;">@dailyForecast.Date.ToShortDateString()</td>
+                        @if (showMaxTemp)
+                        {
+                            <td style="text-align:center;">@dailyForecast.MaxTemperatureC.ToString("F2")</td>
+                        }
+                        @if (showMinTemp)
+                        {
+                            <td style="text-align:center;">@dailyForecast.MinTemperatureC.ToString("F2")</td>
+                        }
+                        @if (showRain)
+                        {
+                            <td style="text-align:center;">@dailyForecast.Rainfall.ToString("F0")</td>
+                        }
+                        @if (showWind)
+                        {
+                            <td style="text-align:center;">@dailyForecast.WindSpeedMph.ToString("F0")</td>
+                        }
+                        @if (showWindDirection)
+                        {
+                            var direction = $"{@dailyForecast.WindDirection}deg";
+                            <td style="text-align:center">
+
+                                <div style="display: inline-block; transform: rotate(@direction); transform-origin: center;">
+                                    <i class="bi bi-arrow-up"></i>
+                                </div>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {  
+    public List<WeekForecast> weekForecasts = new();  
+    public List<string> cities = new();  
+
+    private bool retrievingCities = true;  
+    private bool showMaxTemp = true;  
+    private bool showMinTemp = true;  
+    private bool showRain = true;  
+    private bool showWind = true;  
+    private bool showWindDirection = true;  
+
+    protected override async Task OnInitializedAsync()  
+    {  
+        var cityList = await Http.GetFromJsonAsync<List<string>>("locations");  
+        cities = cityList ?? new List<string>();  
+        retrievingCities = false;  
+    }  
+
+    private async void GetWeather(ChangeEventArgs e)  
+    {  
+        if (e.Value != null)  
+        {  
+            var selectedCities = e.Value as IEnumerable<string>;  
+            if (selectedCities != null)  
+            {  
+                string citieslist = string.Join("&cities=", selectedCities.Select(c => Uri.EscapeDataString(c)));  
+                var forecasts = await Http.GetFromJsonAsync<List<WeekForecast>>($"weatherForecast?cities={citieslist}");  
+                weekForecasts = forecasts ?? new List<WeekForecast>();  
+
+                StateHasChanged();  
+            }  
+        }  
+    }  
+}
